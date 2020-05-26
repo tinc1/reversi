@@ -108,8 +108,8 @@ socket.on('player_disconnected',function(payload){
 		dom_elements.slideUp(1000);
 	}
 
-	/* Manage the message that a new player has joined */
-	var newHTML = '<p>'+payload.username+' just entered the lobby</p>';
+	/* Manage the message that a player has left the room */
+	var newHTML = '<p>'+payload.username+' just disconnected</p>';
 	var newNode = $(newHTML);
 	newNode.hide();
 	$('#messages').append(newNode);
