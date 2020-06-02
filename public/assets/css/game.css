@@ -1,0 +1,27 @@
+ body {
+    background-image: url('../images/background.png');
+    color: #FFFFFF !important;
+      }
+
+table#game_board{
+	margin:auto;
+	border-style: solid;
+	border-width: 10px;
+	border-color: rgb(255, 255, 255);
+}
+
+table#game_board td{
+	padding: 5px;
+	border-style: solid;
+	border-width: 1px;
+	border-color: rgb(255, 255, 255);
+}
+
+#messages p{
+	margin: 0px;
+}
+
+td.hovered_over:hover { 
+	background: url('../images/Hover.gif'), rgb(255, 255, 255);
+	background-size: 100% 100%;
+}
