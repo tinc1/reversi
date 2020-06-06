@@ -325,6 +325,7 @@ socket.on('game_update', function(payload) {
 			return;
 		}
 	$('#my_color').html('<h3 id="my_color">I am '+my_color+'</h3>');
+	$('#my_color').append('<h4>It is '+payload.game.whose_turn+'\'s turn</h4>');
 
 	/* Animate changes to the board */ 
 
@@ -365,20 +366,24 @@ socket.on('game_update', function(payload) {
 					$('#'+row+'_'+column).html('<img src="assets/images/red-to-empty.gif" alt="red square"/>');
 				}
 				else if(old_board[row][column] == 'b' && board[row][column] == 'r'){
-					$('#'+row+'_'+column).html('<img src="assets/images/blue-to-red.gif" alt="red square"/>');
+					$('#'+row+'_'+column).html('<img src="assets/images/BluetoRed.gif" alt="red square"/>');
 				}
 				else if(old_board[row][column] == 'r' && board[row][column] == 'b'){
-					$('#'+row+'_'+column).html('<img src="assets/images/red-to-blue.gif" alt="blue square"/>');
+					$('#'+row+'_'+column).html('<img src="assets/images/RedtoBlue.gif" alt="blue square"/>');
 				}
 				else{
 					$('#'+row+'_'+column).html('<img src="assets/images/error.gif" alt="error"/>');
 				}
-				
-				/* Set up interactivity */
-				$('#'+row+'_'+column).off('click');
-				if(board[row][column] == ' '){ 
-					$('#'+row+'_'+column).addClass('hovered_over');
-					$('#'+row+'_'+column).click(function(r,c){
+			}
+
+/* Set up interactivity */
+$('#'+row+'_'+column).off('click');
+$('#'+row+'_'+column).removeClass('hovered_over');
+
+if(payload.game.whose_turn === my_color){
+	if(payload.game.legal_moves[row][column] === my_color.substr(0,1)){
+			$('#'+row+'_'+column).addClass('hovered_over');
+			$('#'+row+'_'+column).click(function(r,c){
 						return function() {
 							var payload = {}; 
 							payload.row = r;
@@ -388,9 +393,6 @@ socket.on('game_update', function(payload) {
 							socket.emit('play_token',payload);
 						};
 					}(row,column));
-				}
-				else{
-					$('#'+row+'_'+column).removeClass('hovered_over');
 				}
 			}
 		}

@@ -443,8 +443,8 @@ io.sockets.on('connection', function(socket){
 		log('uninvite successful');
 	});
 
-/* game_start command */
-/* payload: 
+	/* game_start command */
+	/* payload: 
 	  		{
 	 		'requested_user': the socket id of the person to be play with
 			}
@@ -632,7 +632,7 @@ io.sockets.on('connection', function(socket){
 			});
 			return;
 		}
-
+		/* Get game state */
 		var game = games[game_id];
 		if(('undefined' === typeof game) || !game){
 			var error_message = 'play_token couldn\'t find your game board';
@@ -644,6 +644,30 @@ io.sockets.on('connection', function(socket){
 			return;
 		}
 
+		/* If the current attempt at playing a token is out of turn then error */
+		if(color !== game.whose_turn){
+			var error_message = 'play_token message played out of turn';
+			log(error_message);
+			socket.emit('play_token_response', {
+													result: 'fail',
+													message: error_message
+												});
+			return;
+		}
+
+		/* If the wrong socket is playing the color */
+			if( ((game.whose_turn === 'blue') && (game.player_blue.socket != socket.id)) ||
+				((game.whose_turn === 'red') && (game.player_red.socket != socket.id))){	
+			var error_message = 'play_token turn played by wrong player';
+			log(error_message);
+			socket.emit('play_token_response', {
+													result: 'fail',
+													message: error_message
+												});
+			return;
+		}
+
+		/* Send response */
 		var success_data = { 
 							result: 'success'
 						};
@@ -652,11 +676,15 @@ io.sockets.on('connection', function(socket){
 		/* Execute the move */ 
 		if(color == 'blue'){ 
 			game.board[row][column] = 'b';
-			game.whose_turn = 'blue';
+			flip_board('b',row,column,game.board);
+			game.whose_turn = 'red';
+			game.legal_moves = calculate_valid_moves('r',game.board);
 		}
 		else if(color == 'red'){ 
 			game.board[row][column] = 'r';
-			game.whose_turn = 'red';
+			flip_board('r',row,column,game.board);
+			game.whose_turn = 'blue';
+			game.legal_moves = calculate_valid_moves('b',game.board);
 		}
 
 		var d = new Date();
@@ -684,7 +712,7 @@ function create_new_game(){
 	var d = new Date();
 	new_game.last_move_time = d.getTime();
 
-	new_game.whose_turn = 'blue';
+	new_game.whose_turn = 'red';
 
 	new_game.board = [
 						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
@@ -697,9 +725,138 @@ function create_new_game(){
 						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
 					];
 
+	new_game.legal_moves = calculate_valid_moves('r',new_game.board);
+
 	return new_game;
 
 }
+
+/* Check if there is a color 'who' on the line starting at (r,c) or anywhere further by adding dr and dc to (r,c) */
+	function check_line_match(who,dr,dc,r,c,board){
+		if(board[r][c] === who){
+			return true;
+		}
+		if(board[r][c] === ' '){
+			return false;
+		}
+
+		if( (r+dr < 0) || (r+dr > 7) ){
+			return false;
+		}
+		if( (c+dc < 0) || (c+dc > 7) ){
+			return false;
+		}
+		return check_line_match(who,dr,dc,r+dr,c+dc,board);
+	}
+
+/* Check if the position at r,c contains the opposite of 'who' on the board 
+ * and if the line indicated by adding dr to r and dc to c eventually ends in 
+    the who color */
+
+ function valid_move(who, dr,dc,r,c,board){
+ 	var other; 
+ 	if(who === 'b'){
+ 		other = 'r';
+ 	}
+ 	else if(who === 'r'){
+ 		other = 'b';
+ 	}
+ 	else{
+ 		log('Houston we have a color problem: '+who);
+ 		return false;
+ 	}
+
+ 	if( (r+dr < 0) || (r+dr > 7) ){
+ 		return false;
+ 	}
+ 	if( (c+dc < 0) || (c+dc > 7) ){
+ 		return false;
+ 	}
+ 	if(board[r+dr][c+dc] != other){
+ 		return false;
+ 	}
+ 	if( (r+dr+dr < 0) || (r+dr+dr > 7) ){
+ 		return false;
+ 	}
+ 	if( (c+dc+dc < 0) || (c+dc+dc > 7) ){
+ 		return false;
+ 	}
+ 	return check_line_match(who,dr,dc,r+dr+dr,c+dc+dc,board);
+
+}
+
+function calculate_valid_moves(who,board){
+	var valid = [
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+						[' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ']
+					];
+
+	for(var row = 0; row <8; row++){
+		for(var column = 0; column < 8; column++){
+			if(board[row][column] === ' '){ 
+				nw = valid_move(who,-1,-1,row,column,board);
+				nn = valid_move(who,-1, 0,row,column,board);
+				ne = valid_move(who,-1, 1,row,column,board);
+
+				ww = valid_move(who, 0,-1,row,column,board);
+				ee = valid_move(who, 0, 1,row,column,board);
+
+				sw = valid_move(who, 1,-1,row,column,board);
+				ss = valid_move(who, 1, 0,row,column,board);
+				se = valid_move(who, 1, 1,row,column,board);
+
+				if(nw || nn || ne || ww || ee || sw || ss || se){
+					valid[row][column] = who; 
+				}
+			}
+		}
+	}
+	return valid; 
+}
+
+function flip_line(who,dr,dc,r,c,board){
+	if( (r+dr < 0) || (r+dr > 7) ){
+ 		return false;
+ 	}
+ 	if( (c+dc < 0) || (c+dc > 7) ){
+ 		return false;
+ 	}
+ 	if(board[r+dr][c+dc] === ' '){
+ 		return false;
+ 	}
+ 	if(board[r+dr][c+dc] === who){
+ 		return true;
+ 	}
+ 	else{
+ 		if(flip_line(who,dr,dc,r+dr,c+dc,board)){
+ 			board[r+dr][c+dc] = who; 
+ 			return true;
+ 		}
+ 		else{
+ 			return false; 
+ 		}
+ 	}
+}
+
+function flip_board(who,row,column,board){
+	flip_line(who,-1,-1,row,column,board);
+	flip_line(who,-1, 0,row,column,board);
+	flip_line(who,-1, 1,row,column,board);
+
+	flip_line(who, 0,-1,row,column,board);
+	flip_line(who, 0, 1,row,column,board);
+
+	flip_line(who, 1,-1,row,column,board);
+	flip_line(who, 1, 0,row,column,board);
+	flip_line(who, 1, 1,row,column,board);
+}
+
 
 function send_game_update(socket, game_id, message){
 	/* Check to see if a game with game_id already exists */
@@ -747,6 +904,7 @@ while((numClients-1) > 2);
 	}
 
 	/* Assign colors to the players if not already done */ 
+
 	if(games[game_id].player_blue.socket == ''){ 
 		if(games[game_id].player_red.socket != socket.id){
 			games[game_id].player_blue.socket = socket.id;
@@ -771,32 +929,49 @@ while((numClients-1) > 2);
 						};
 
 	io.in(game_id).emit('game_update',success_data);
-	/* Check to see if the game is over */ 
 
+	/* Check to see if the game is over */ 
 	var row,column;
 	var count = 0;
+	var blue = 0; 
+	var red = 0; 
 	for(row = 0; row < 8; row++){
-		for(column = 0; column <8; column++){
-			if(games[game_id].board[row][column] != ' '){
+		for(column = 0; column < 8; column++){
+			if(games[game_id].legal_moves[row][column] != ' '){
 				count++;
 			}
-		}
+			if(games[game_id].legal_moves[row][column] === 'b'){
+				blue++;
+			}
+			if(games[game_id].legal_moves[row][column] === 'r'){
+				red++;
+			}
 	}
-	if(count == 64){
-		/* Send a game over message */
-		var success_data = {
-								result: 'success',
-								game: games[game_id], 
-								who_won: 'everyone',
-								game_id: game_id
-		};
-		io.in(game_id).emit('game_over', success_data);
-		/* Delete old games aftrer 1 hour */
-		setTimeout(function(id){
-			return function(){
-				delete games[id];
-				}}(game_id)
-				,60*60*1000);
-			
-		}
+}
+	if(count == 0){
+    	/* Send a game over message */
+    	var winner = 'tie game';
+    	if(blue > red){
+     	 winner = 'blue';
+    	}
+    	if(red > blue){
+      	winner = 'red';
+    	}
+    	var success_data = {
+      							result: 'success',
+      							game: games[game_id],
+      							who_won: winner,
+      							game_id: game_id
+    };
+    io.in(game_id).emit('game_over',success_data);
+
+    /* Delete old games after 1 hour */
+    setTimeout(function(id){
+      return function(){
+        delete games[id];
+      }}(game_id)
+    ,60*60*1000);
+  }
+
+
 }
