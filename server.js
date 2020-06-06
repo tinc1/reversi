@@ -755,11 +755,11 @@ function create_new_game(){
 
  function valid_move(who, dr,dc,r,c,board){
  	var other; 
- 	if(who === 'b'){
- 		other = 'r';
- 	}
- 	else if(who === 'r'){
+ 	if(who === 'r'){
  		other = 'b';
+ 	}
+ 	else if(who === 'b'){
+ 		other = 'r';
  	}
  	else{
  		log('Houston we have a color problem: '+who);
@@ -940,11 +940,11 @@ while((numClients-1) > 2);
 			if(games[game_id].legal_moves[row][column] != ' '){
 				count++;
 			}
-			if(games[game_id].legal_moves[row][column] === 'b'){
-				blue++;
-			}
-			if(games[game_id].legal_moves[row][column] === 'r'){
+			if(games[game_id].board[row][column] === 'r'){
 				red++;
+			}
+			if(games[game_id].board[row][column] === 'b'){
+				blue++;
 			}
 	}
 }
